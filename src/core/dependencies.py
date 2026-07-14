@@ -11,7 +11,7 @@ from repository.application_repository import ApplicationRepository
 from repository.interview_repository import InterviewRepository
 
 # Services
-from service.llm_provider import LLmProvider, GeminiLLmProvider, GroqLLmProvider
+from service.llm_provider import LLmProvider, GeminiLLmProvider, GroqLLmProvider, FallbackLLmProvider
 from service.file_service import FileService
 from service.resume_parser import ResumeParser
 from service.job_service import JobService
@@ -33,7 +33,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 # LLM Provider Dependency
 @lru_cache
 def get_llm_provider() -> LLmProvider:
-    return GroqLLmProvider()
+    primary = GeminiLLmProvider()
+    backup = GroqLLmProvider()
+    return FallbackLLmProvider(primary=primary, backup=backup)
 
 # Repository Dependencies
 @lru_cache

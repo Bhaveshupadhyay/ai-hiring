@@ -3,6 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from models.interview import Interview
+from models.application import Application
+from models.candidate import Candidate
 
 class InterviewRepository:
     async def create(self, db: AsyncSession, interview: Interview) -> Interview:
@@ -14,7 +16,10 @@ class InterviewRepository:
         result = await db.execute(
             select(Interview)
             .where(Interview.id == interview_id)
-            .options(selectinload(Interview.application))
+            .options(
+                selectinload(Interview.application).selectinload(Application.candidate).selectinload(Candidate.resume_analysis),
+                selectinload(Interview.application).selectinload(Application.job)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -22,7 +27,10 @@ class InterviewRepository:
         result = await db.execute(
             select(Interview)
             .order_by(Interview.scheduled_at.desc())
-            .options(selectinload(Interview.application))
+            .options(
+                selectinload(Interview.application).selectinload(Application.candidate).selectinload(Candidate.resume_analysis),
+                selectinload(Interview.application).selectinload(Application.job)
+            )
         )
         return list(result.scalars().all())
 

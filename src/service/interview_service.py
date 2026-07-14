@@ -46,7 +46,12 @@ class InterviewService:
         saved_interview = await self.interview_repository.create(db, interview)
         await db.flush()
         logger.info(f"Scheduled interview for application {application_id} at {scheduled_at}")
-        return saved_interview
+        
+        # Eager load application and nested objects to prevent serialization issues
+        eager_loaded_interview = await self.get_interview_by_id(db, saved_interview.id)
+        if not eager_loaded_interview:
+            return saved_interview
+        return eager_loaded_interview
 
     async def update_interview(
         self,

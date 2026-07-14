@@ -20,7 +20,7 @@ class CandidateService:
         self.file_service = file_service
         self.resume_parser = resume_parser
 
-    async def upload_resume(self, db: AsyncSession, file: UploadFile) -> Candidate:
+    async def upload_resume(self, db: AsyncSession, file: UploadFile, job_id: uuid.UUID) -> Candidate:
         """
         Flow:
         1. Upload PDF using FileService (returns URL)
@@ -69,8 +69,28 @@ class CandidateService:
             )
 
         # Update candidate with parsed data
+        email = parsed_data.email or "Unknown"
+        
+        if email and email.lower() != "unknown":
+            existing_candidate = await self.candidate_repository.get_by_email(db, email)
+            if existing_candidate:
+                # Check for duplicate resume for the same job id
+                app_exists = await self.candidate_repository.check_application_exists(
+                    db, candidate_id=existing_candidate.id, job_id=job_id
+                )
+                if app_exists:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Duplicate resume upload for the same job id."
+                    )
+                # Check if email already exists in candidate db
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already exists in the candidate database."
+                )
+
         candidate.name = parsed_data.name or file.filename or "Unknown"
-        candidate.email = parsed_data.email or "Unknown"
+        candidate.email = email
         candidate.phone = parsed_data.phone
         
         # Save structured resume analysis
