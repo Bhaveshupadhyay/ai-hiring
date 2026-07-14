@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.dependencies import get_db, get_candidate_service, get_matching_service
 from service.candidate_service import CandidateService
@@ -34,7 +34,7 @@ async def upload_resume(
         )
 
     # 1. Upload resume and parse details
-    candidate = await candidate_service.upload_resume(db, file)
+    candidate = await candidate_service.upload_resume(db, file, job_id)
 
     # 2. Run AI matching automatically for this job
     await matching_service.match_candidate_to_job(db, job_id=job_id, candidate_id=candidate.id)

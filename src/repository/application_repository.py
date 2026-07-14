@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from models.application import Application
+from models.candidate import Candidate
 
 class ApplicationRepository:
     async def create(self, db: AsyncSession, application: Application) -> Application:
@@ -14,7 +15,10 @@ class ApplicationRepository:
         result = await db.execute(
             select(Application)
             .where(Application.id == app_id)
-            .options(selectinload(Application.candidate), selectinload(Application.job))
+            .options(
+                selectinload(Application.candidate).selectinload(Candidate.resume_analysis),
+                selectinload(Application.job)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -22,7 +26,10 @@ class ApplicationRepository:
         result = await db.execute(
             select(Application)
             .order_by(Application.created_at.desc())
-            .options(selectinload(Application.candidate), selectinload(Application.job))
+            .options(
+                selectinload(Application.candidate).selectinload(Candidate.resume_analysis),
+                selectinload(Application.job)
+            )
         )
         return list(result.scalars().all())
 

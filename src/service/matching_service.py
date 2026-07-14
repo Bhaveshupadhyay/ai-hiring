@@ -93,7 +93,11 @@ class MatchingService:
             logger.info(f"Created new application ID: {application.id}")
 
         await db.flush()
-        return application
+        # Eager load candidate, job, and resume_analysis to prevent serialization issues
+        eager_loaded_app = await self.get_application_by_id(db, application.id)
+        if not eager_loaded_app:
+            return application
+        return eager_loaded_app
 
     async def get_application_by_id(self, db: AsyncSession, app_id: uuid.UUID) -> Application | None:
         return await self.application_repository.get_by_id(db, app_id)
