@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.dependencies import get_db, get_matching_service
 from service.matching_service import MatchingService
-from api.v1.schemas import MatchRequest, ApplicationReviewRequest, ApplicationResponse
+from api.v1.schemas import MatchRequest, ApplicationReviewRequest, ApplicationResponse, ApplicationStatusUpdateRequest
+from models.application import ApplicationStatus
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
@@ -29,13 +30,17 @@ async def match_candidate_to_job(
 
 @router.get("", response_model=list[ApplicationResponse])
 async def get_applications(
+    job_id: uuid.UUID | None = None,
+    status: ApplicationStatus | None = None,
+    sort_by_score: bool = False,
     db: AsyncSession = Depends(get_db),
     matching_service: MatchingService = Depends(get_matching_service)
 ):
     """
-    List all applications for the dashboard review.
+    List all applications for the dashboard review, optionally filtered by job_id and status,
+    and optionally sorted by match score (high to low).
     """
-    apps = await matching_service.get_all_applications(db)
+    apps = await matching_service.get_all_applications(db, status=status, sort_by_score=sort_by_score, job_id=job_id)
     return apps
 
 @router.patch("/{id}", response_model=ApplicationResponse)
@@ -58,4 +63,25 @@ async def review_application(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error reviewing application: {str(e)}"
+        )
+
+@router.post("/{id}/status", response_model=ApplicationResponse)
+async def update_application_status(
+    id: uuid.UUID,
+    request: ApplicationStatusUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    matching_service: MatchingService = Depends(get_matching_service)
+):
+    """
+    Update the status of an application.
+    """
+    try:
+        application = await matching_service.update_application_status(db, id, request.status)
+        return application
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating application status: {str(e)}"
         )

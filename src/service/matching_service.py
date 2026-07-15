@@ -6,7 +6,7 @@ from repository.application_repository import ApplicationRepository
 from repository.job_repository import JobRepository
 from repository.candidate_repository import CandidateRepository
 from service.llm_provider import LLmProvider
-from models.application import Application
+from models.application import Application, ApplicationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class MatchingService:
             existing_app.strengths = match_result.strengths
             existing_app.weaknesses = match_result.weaknesses
             existing_app.ai_decision = match_result.decision
-            existing_app.status = "pending" # Reset status for human review
+            existing_app.status = ApplicationStatus.PENDING # Reset status for human review
             # We preserve hm_decision as per requirements (do not overwrite)
             application = await self.application_repository.update(db, existing_app)
             logger.info(f"Updated existing application ID: {application.id}")
@@ -87,7 +87,7 @@ class MatchingService:
                 weaknesses=match_result.weaknesses,
                 ai_decision=match_result.decision,
                 hm_decision=None,
-                status="pending"
+                status=ApplicationStatus.PENDING
             )
             application = await self.application_repository.create(db, application)
             logger.info(f"Created new application ID: {application.id}")
@@ -102,8 +102,8 @@ class MatchingService:
     async def get_application_by_id(self, db: AsyncSession, app_id: uuid.UUID) -> Application | None:
         return await self.application_repository.get_by_id(db, app_id)
 
-    async def get_all_applications(self, db: AsyncSession) -> list[Application]:
-        return await self.application_repository.get_all(db)
+    async def get_all_applications(self, db: AsyncSession, status: str | None = None, sort_by_score: bool = False, job_id: uuid.UUID | None = None) -> list[Application]:
+        return await self.application_repository.get_all(db, status=status, sort_by_score=sort_by_score, job_id=job_id)
 
     async def review_application(
         self,
@@ -131,3 +131,29 @@ class MatchingService:
         
         logger.info(f"Hiring manager reviewed application {app_id}: {hm_decision}")
         return updated_app
+
+    async def update_application_status(
+        self,
+        db: AsyncSession,
+        app_id: uuid.UUID,
+        status: str
+    ) -> Application:
+        """
+        Directly updates the status of an application.
+        """
+        application = await self.application_repository.get_by_id(db, app_id)
+        if not application:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        application.status = status
+        updated_app = await self.application_repository.update(db, application)
+        await db.flush()
+
+        logger.info(f"Updated status of application {app_id} to: {status}")
+        return updated_app
+
+    async def get_applicants_count(self, db: AsyncSession, job_id: uuid.UUID) -> int:
+        """
+        Get the total count of applications/applicants for a given job post.
+        """
+        return await self.application_repository.get_count_by_job_id(db, job_id)

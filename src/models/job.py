@@ -1,8 +1,14 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, DateTime
+from enum import Enum as PyEnum
+from sqlalchemy import String, Text, DateTime, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 from core.client import Base
+
+class JobStatus(str, PyEnum):
+    DRAFT = "draft"
+    OPEN = "open"
+    CLOSED = "closed"
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -15,7 +21,15 @@ class Job(Base):
     nice_to_have: Mapped[str | None] = mapped_column(Text, nullable=True)
     experience_required: Mapped[str | None] = mapped_column(Text, nullable=True)
     education: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="draft", nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(
+            JobStatus,
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
+        default=JobStatus.DRAFT,
+        nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc), 

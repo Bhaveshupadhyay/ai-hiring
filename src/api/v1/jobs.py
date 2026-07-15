@@ -1,9 +1,10 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.dependencies import get_db, get_job_service
+from core.dependencies import get_db, get_job_service, get_matching_service
 from service.job_service import JobService
-from api.v1.schemas import JobGenerateRequest, JobCreateRequest, JobUpdateRequest, JobResponse
+from service.matching_service import MatchingService
+from api.v1.schemas import JobGenerateRequest, JobCreateRequest, JobUpdateRequest, JobResponse, JobStatusUpdateRequest, JobApplicantsCountResponse
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -79,6 +80,38 @@ async def update_job(
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     return job
+
+@router.post("/{id}/status", response_model=JobResponse)
+async def update_job_status(
+    id: uuid.UUID,
+    request: JobStatusUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    job_service: JobService = Depends(get_job_service)
+):
+    """
+    Update the status of an existing job post.
+    """
+    job = await job_service.update_job(db, id, {"status": request.status})
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job
+
+@router.get("/{id}/applicants/count", response_model=JobApplicantsCountResponse)
+async def get_job_applicants_count(
+    id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    job_service: JobService = Depends(get_job_service),
+    matching_service: MatchingService = Depends(get_matching_service)
+):
+    """
+    Fetch the total number of applicants (applications) for a job post.
+    """
+    job = await job_service.get_job_by_id(db, id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job post not found")
+        
+    count = await matching_service.get_applicants_count(db, id)
+    return JobApplicantsCountResponse(job_id=id, count=count)
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_job(

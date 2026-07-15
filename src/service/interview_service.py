@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from repository.interview_repository import InterviewRepository
 from repository.application_repository import ApplicationRepository
-from models.interview import Interview
+from models.interview import Interview, InterviewStatus
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class InterviewService:
             scheduled_at=scheduled_at,
             meeting_link=meeting_link,
             notes=notes,
-            status="scheduled"
+            status=InterviewStatus.SCHEDULED
         )
         
         saved_interview = await self.interview_repository.create(db, interview)
