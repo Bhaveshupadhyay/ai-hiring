@@ -1,25 +1,36 @@
-name: Sync to Hugging Face Spaces
+name: Deploy to Hugging Face Spaces
 
 on:
   push:
-    branches: [main] # Triggers when you push to the main branch
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches:
+      - main
   workflow_dispatch:
+
+env:
+  # TODO: Update these if your Hugging Face username or space name is different
+  HF_USERNAME: Bhavesh9319
+  HF_SPACE_NAME: ai-hiring
 
 jobs:
   deploy:
+    name: Sync to Hugging Face
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
 
-      - name: Push to HF
+      - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Push the code to the Hugging Face Space Git repository
-          git push --force https://Bhavesh9319:$HF_TOKEN@huggingface.co/spaces/YOUR_HF_USERNAME/YOUR_SPACE_NAME main
+          # Configure Git credentials
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Add Hugging Face Space as a remote and force-push the main branch
+          # Hugging Face will automatically detect the Dockerfile, build it, and deploy it.
+          git remote add hf https://${{ env.HF_USERNAME }}:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }}
+          git push --force hf main
