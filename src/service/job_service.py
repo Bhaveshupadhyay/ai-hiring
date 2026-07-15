@@ -25,7 +25,7 @@ class JobService:
         nice_to_have_str = "\n".join(llm_response.nice_to_have)
 
         job = Job(
-            title=title,
+            title=llm_response.title or title,
             summary=llm_response.summary,
             responsibilities=responsibilities_str,
             requirements=requirements_str,

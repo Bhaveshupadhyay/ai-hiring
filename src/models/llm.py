@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, AliasChoices
 
 class JobDescriptionLLMResponse(BaseModel):
+    title: str = Field(description="A short, concise job title (e.g., 'SDE 1 Backend') without extra details")
     summary: str = Field(description="High-level summary of the job role")
     responsibilities: list[str] = Field(description="Key responsibilities and duties of the role")
     requirements: list[str] = Field(description="Must-have technical skills, experience, and qualifications")
