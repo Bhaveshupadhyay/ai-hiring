@@ -4,8 +4,8 @@ FROM python:3.14-slim AS builder
 # Install uv for extremely fast and reliable dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Set working directory for the build stage
-WORKDIR /app
+# Set working directory to match the final runtime path (prevents virtualenv shebang path mismatch)
+WORKDIR /home/user/app
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -26,7 +26,7 @@ USER user
 WORKDIR /home/user/app
 
 # Copy the virtual environment from builder and change ownership to the non-root user
-COPY --from=builder --chown=user:user /app/.venv /home/user/app/.venv
+COPY --from=builder --chown=user:user /home/user/app/.venv /home/user/app/.venv
 
 # Copy application source files with correct owner permissions
 COPY --chown=user:user src/ /home/user/app/src/
@@ -37,5 +37,5 @@ ENV PATH="/home/user/app/.venv/bin:$PATH"
 # Default fallback port (dynamic platforms like Render and Hugging Face inject a $PORT environment variable)
 EXPOSE 8000
 
-# Start FastAPI using uvicorn, binding to the PORT environment variable if defined, otherwise defaulting to 8000
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start FastAPI by calling python -m uvicorn directly from the virtual environment path
+CMD ["sh", "-c", "/home/user/app/.venv/bin/python -m uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
