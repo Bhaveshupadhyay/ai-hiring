@@ -64,6 +64,12 @@ class MatchingService:
         # Call Gemini matching
         match_result = await self.llm_provider.match_resume(job_data, resume_data)
 
+        # Map decision to ApplicationStatus
+        try:
+            app_status = ApplicationStatus(match_result.decision.lower().strip())
+        except (ValueError, AttributeError):
+            app_status = ApplicationStatus.PENDING
+
         # Check if application already exists
         existing_app = await self.application_repository.get_by_job_and_candidate(db, job_id=job_id, candidate_id=candidate_id)
         
@@ -73,7 +79,7 @@ class MatchingService:
             existing_app.strengths = match_result.strengths
             existing_app.weaknesses = match_result.weaknesses
             existing_app.ai_decision = match_result.decision
-            existing_app.status = ApplicationStatus.PENDING # Reset status for human review
+            existing_app.status = app_status # Update status based on AI decision
             # We preserve hm_decision as per requirements (do not overwrite)
             application = await self.application_repository.update(db, existing_app)
             logger.info(f"Updated existing application ID: {application.id}")
@@ -87,7 +93,7 @@ class MatchingService:
                 weaknesses=match_result.weaknesses,
                 ai_decision=match_result.decision,
                 hm_decision=None,
-                status=ApplicationStatus.PENDING
+                status=app_status
             )
             application = await self.application_repository.create(db, application)
             logger.info(f"Created new application ID: {application.id}")
