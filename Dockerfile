@@ -34,6 +34,9 @@ COPY --chown=user:user src/ /home/user/app/src/
 # Place the virtual environment's bin folder at the front of the PATH
 ENV PATH="/home/user/app/.venv/bin:$PATH"
 
+# Configure PYTHONPATH to include the src directory so python can resolve modules correctly
+ENV PYTHONPATH="/home/user/app/src"
+
 # Default fallback port (dynamic platforms like Render and Hugging Face inject a $PORT environment variable)
 EXPOSE 8000
 
