@@ -18,12 +18,15 @@ origins = [
     "https://bhaveshupadhyay.github.io",
     "https://www.bhaveshupadhyay.github.io",
     "http://127.0.0.1:8000",
-    "http://localhost:8000"
+    "http://localhost:8000",
+    "http://localhost:63342",
+    "http://localhost:3000",
+    "http://localhost:5173"
 ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "accept"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
