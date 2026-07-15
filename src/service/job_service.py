@@ -35,8 +35,8 @@ class JobService:
             status=JobStatus.DRAFT
         )
         
-        # saved_job = await self.job_repository.create(db, job)
-        return job
+        saved_job = await self.job_repository.create(db, job)
+        return saved_job
 
     async def create_job(self, db: AsyncSession, job_data: dict) -> Job:
         """
