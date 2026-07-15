@@ -1,36 +1,34 @@
-# Use Python 3.14-slim as the builder stage
+# Use Python 3.14-slim as the builder stage (runs as root by default)
 FROM python:3.14-slim AS builder
 
 # Install uv for extremely fast and reliable dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create a non-root user (UID 1000) for security compatibility (e.g. Hugging Face Spaces)
-RUN useradd -m -u 1000 user
-USER user
-WORKDIR /home/user/app
+# Set working directory for the build stage
+WORKDIR /app
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 
-# Copy dependency files with correct owner permissions
-COPY --chown=user:user pyproject.toml uv.lock ./
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies (excluding dev tools and project self-installation)
-RUN --mount=type=cache,target=/home/user/.cache/uv \
+# Install dependencies (running as root so cache mount permissions work perfectly)
+RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 # Final runtime stage
 FROM python:3.14-slim
 
-# Create the same non-root user for runtime
+# Create a non-root user (UID 1000) for security compatibility (required by Hugging Face Spaces)
 RUN useradd -m -u 1000 user
 USER user
 WORKDIR /home/user/app
 
-# Copy the dependencies from builder
-COPY --from=builder --chown=user:user /home/user/app/.venv /home/user/app/.venv
+# Copy the virtual environment from builder and change ownership to the non-root user
+COPY --from=builder --chown=user:user /app/.venv /home/user/app/.venv
 
-# Copy application source files
+# Copy application source files with correct owner permissions
 COPY --chown=user:user src/ /home/user/app/src/
 
 # Place the virtual environment's bin folder at the front of the PATH
