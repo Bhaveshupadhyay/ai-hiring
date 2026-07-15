@@ -45,9 +45,10 @@ class GeminiLLmProvider(LLmProvider):
         
         system_instruction = (
             "You are a professional HR assistant. Generate a hiring post structured as JSON containing: "
-            "summary, responsibilities (list of strings), requirements (list of strings), nice_to_have (list of strings), "
+            "title, summary, responsibilities (list of strings), requirements (list of strings), nice_to_have (list of strings), "
             "experience_required (string), and education (string). "
-            "Return valid JSON only matching the schema. No markdown."
+            "Return valid JSON only matching the schema. No markdown. "
+            "The title should be short and concise (e.g., 'SDE 1 Backend') and should not mention all the requirements or details."
         )
 
         gen_config = types.GenerateContentConfig(
@@ -144,9 +145,10 @@ class GroqLLmProvider(LLmProvider):
         # 2. Inject it into the prompt
         system_instruction = (
             "You are a professional HR assistant. Generate a hiring post structured as JSON containing: "
-            "summary, responsibilities (list of strings), requirements (list of strings), nice_to_have (list of strings), "
+            "title, summary, responsibilities (list of strings), requirements (list of strings), nice_to_have (list of strings), "
             "experience_required (string), and education (string). "
             "Return valid JSON only. No markdown.\n\n"
+            "The title should be short and concise (e.g., 'SDE 1 Backend') and should not mention all the requirements or details.\n\n"
             f"You MUST exactly match this JSON schema:\n{json.dumps(schema, indent=2)}"
         )
 
