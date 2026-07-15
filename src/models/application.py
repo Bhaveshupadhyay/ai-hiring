@@ -1,8 +1,16 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, JSON
+from enum import Enum as PyEnum
+from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, JSON, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.client import Base
+
+class ApplicationStatus(str, PyEnum):
+    PENDING = "pending"
+    SHORTLISTED = "shortlisted"
+    REJECTED = "rejected"
+    INTERVIEWING = "interviewing"
+    APPROVED = "approved"
 
 class Application(Base):
     __tablename__ = "applications"
@@ -16,7 +24,15 @@ class Application(Base):
     weaknesses: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
     ai_decision: Mapped[str | None] = mapped_column(String(50), nullable=True)
     hm_decision: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
+    status: Mapped[ApplicationStatus] = mapped_column(
+        Enum(
+            ApplicationStatus,
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
+        default=ApplicationStatus.PENDING,
+        nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc), 

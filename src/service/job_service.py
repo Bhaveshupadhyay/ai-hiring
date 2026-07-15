@@ -2,7 +2,7 @@ import uuid
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from repository.job_repository import JobRepository
-from models.job import Job
+from models.job import Job, JobStatus
 from service.llm_provider import LLmProvider
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class JobService:
             nice_to_have=nice_to_have_str,
             experience_required=llm_response.experience_required,
             education=llm_response.education,
-            status="draft"
+            status=JobStatus.DRAFT
         )
         
         # saved_job = await self.job_repository.create(db, job)
@@ -50,7 +50,7 @@ class JobService:
             nice_to_have=job_data.get("nice_to_have"),
             experience_required=job_data.get("experience_required"),
             education=job_data.get("education"),
-            status=job_data.get("status", "draft")
+            status=job_data.get("status", JobStatus.DRAFT)
         )
         return await self.job_repository.create(db, job)
 

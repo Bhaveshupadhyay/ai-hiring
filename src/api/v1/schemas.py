@@ -1,6 +1,9 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
+from models.application import ApplicationStatus
+from models.job import JobStatus
+from models.interview import InterviewStatus
 
 # --- Job Schemas ---
 class JobGenerateRequest(BaseModel):
@@ -14,7 +17,7 @@ class JobCreateRequest(BaseModel):
     nice_to_have: str | None = None
     experience_required: str | None = None
     education: str | None = None
-    status: str = "draft"
+    status: JobStatus = JobStatus.DRAFT
 
 class JobUpdateRequest(BaseModel):
     title: str | None = Field(None, max_length=255)
@@ -24,7 +27,10 @@ class JobUpdateRequest(BaseModel):
     nice_to_have: str | None = None
     experience_required: str | None = None
     education: str | None = None
-    status: str | None = None
+    status: JobStatus | None = None
+
+class JobStatusUpdateRequest(BaseModel):
+    status: JobStatus = Field(..., description="The new status of the job post")
 
 class JobResponse(BaseModel):
     id: uuid.UUID
@@ -35,11 +41,15 @@ class JobResponse(BaseModel):
     nice_to_have: str | None
     experience_required: str | None
     education: str | None
-    status: str
+    status: JobStatus
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class JobApplicantsCountResponse(BaseModel):
+    job_id: uuid.UUID
+    count: int
 
 
 # --- Resume Analysis / Candidate Schemas ---
@@ -76,6 +86,9 @@ class MatchRequest(BaseModel):
 class ApplicationReviewRequest(BaseModel):
     hm_decision: str = Field(..., description="Decision by hiring manager: 'approved' or 'rejected'")
 
+class ApplicationStatusUpdateRequest(BaseModel):
+    status: ApplicationStatus = Field(..., description="The new status of the application")
+
 class ApplicationResponse(BaseModel):
     id: uuid.UUID
     candidate_id: uuid.UUID
@@ -86,7 +99,7 @@ class ApplicationResponse(BaseModel):
     weaknesses: list | dict | None
     ai_decision: str | None
     hm_decision: str | None
-    status: str
+    status: ApplicationStatus
     created_at: datetime
     candidate: CandidateResponse | None = None
     job: JobResponse | None = None
@@ -106,7 +119,7 @@ class InterviewUpdateRequest(BaseModel):
     scheduled_at: datetime | None = None
     meeting_link: str | None = None
     notes: str | None = None
-    status: str | None = None
+    status: InterviewStatus | None = None
 
 class InterviewResponse(BaseModel):
     id: uuid.UUID
@@ -114,7 +127,7 @@ class InterviewResponse(BaseModel):
     scheduled_at: datetime
     meeting_link: str | None
     notes: str | None
-    status: str
+    status: InterviewStatus
     application: ApplicationResponse | None = None
 
     class Config:
