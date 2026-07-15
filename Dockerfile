@@ -4,7 +4,7 @@ FROM python:3.14-slim AS builder
 # Install uv for extremely fast and reliable dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Hugging Face Spaces requires running as a non-root user (UID 1000)
+# Create a non-root user (UID 1000) for security compatibility (e.g. Hugging Face Spaces)
 RUN useradd -m -u 1000 user
 USER user
 WORKDIR /home/user/app
@@ -36,8 +36,8 @@ COPY --chown=user:user src/ /home/user/app/src/
 # Place the virtual environment's bin folder at the front of the PATH
 ENV PATH="/home/user/app/.venv/bin:$PATH"
 
-# Hugging Face Spaces expects the container to listen on port 7860
-EXPOSE 7860
+# Default fallback port (dynamic platforms like Render and Hugging Face inject a $PORT environment variable)
+EXPOSE 8000
 
-# Run FastAPI app using uvicorn on port 7860
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Start FastAPI using uvicorn, binding to the PORT environment variable if defined, otherwise defaulting to 8000
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
