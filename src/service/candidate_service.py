@@ -24,23 +24,12 @@ class CandidateService:
         """
         Flow:
         1. Upload PDF using FileService (returns URL)
-        2. Create Candidate (initial)
-        3. Parse Resume via ResumeParser (Gemini)
-        4. Save structured ResumeAnalysis
-        5. Update Candidate name, email, phone from parsed details
+        2. Parse Resume via ResumeParser (Gemini)
+        3. Save structured ResumeAnalysis and Candidate
         """
         logger.info(f"Uploading file: {file.filename}")
         # Upload PDF
         resume_url = await self.file_service.upload_file(file)
-        
-        # Create initial candidate record
-        candidate = Candidate(
-            name="Parsing...",
-            email="Parsing...",
-            phone=None,
-            resume_url=resume_url
-        )
-        candidate = await self.candidate_repository.create(db, candidate)
         
         # Parse resume via ResumeParser
         try:
@@ -50,6 +39,14 @@ class CandidateService:
             # Even if parsing fails, we keep the candidate with the uploaded URL
             # but raise an error or set defaults. Let's raise an HTTP exception or save placeholder analysis
             # We want to make sure it's robust. Let's create an empty analysis to avoid breaking the DB constraints.
+            candidate = Candidate(
+                name=file.filename or "Unknown",
+                email="Unknown",
+                phone=None,
+                resume_url=resume_url
+            )
+            candidate = await self.candidate_repository.create(db, candidate)
+            
             empty_analysis = ResumeAnalysis(
                 candidate_id=candidate.id,
                 skills=[],
@@ -60,15 +57,13 @@ class CandidateService:
                 raw_response={"error": str(e)}
             )
             await self.candidate_repository.create_resume_analysis(db, empty_analysis)
-            candidate.name = file.filename or "Unknown"
-            candidate.email = "Unknown"
             await db.flush()
             raise HTTPException(
                 status_code=422,
                 detail=f"Successfully uploaded, but failed to parse resume text: {str(e)}"
             )
 
-        # Update candidate with parsed data
+        # Update/Create candidate with parsed data
         email = parsed_data.email or "Unknown"
         
         if email and email.lower() != "unknown":
@@ -83,18 +78,48 @@ class CandidateService:
                         status_code=400,
                         detail="Duplicate resume upload for the same job id."
                     )
-                # Check if email already exists in candidate db
-                raise HTTPException(
-                    status_code=400,
-                    detail="Email already exists in the candidate database."
-                )
+                
+                # Update the existing candidate instead of raising an error
+                existing_candidate.name = parsed_data.name or file.filename or "Unknown"
+                existing_candidate.phone = parsed_data.phone
+                existing_candidate.resume_url = resume_url
+                
+                # Check if there is an existing analysis for this candidate
+                existing_analysis = await self.candidate_repository.get_resume_analysis_by_candidate_id(db, existing_candidate.id)
+                raw_dict = parsed_data.model_dump()
+                if existing_analysis:
+                    existing_analysis.skills = parsed_data.skills
+                    existing_analysis.experience = parsed_data.experience
+                    existing_analysis.education = parsed_data.education
+                    existing_analysis.projects = parsed_data.projects
+                    existing_analysis.summary = parsed_data.summary
+                    existing_analysis.raw_response = raw_dict
+                else:
+                    analysis = ResumeAnalysis(
+                        candidate_id=existing_candidate.id,
+                        skills=parsed_data.skills,
+                        experience=parsed_data.experience,
+                        education=parsed_data.education,
+                        projects=parsed_data.projects,
+                        summary=parsed_data.summary,
+                        raw_response=raw_dict
+                    )
+                    await self.candidate_repository.create_resume_analysis(db, analysis)
+                
+                await db.flush()
+                logger.info(f"Successfully updated candidate and analysis for: {existing_candidate.name}")
+                return existing_candidate
 
-        candidate.name = parsed_data.name or file.filename or "Unknown"
-        candidate.email = email
-        candidate.phone = parsed_data.phone
+        # Create new candidate if email is unknown or candidate does not exist yet
+        candidate = Candidate(
+            name=parsed_data.name or file.filename or "Unknown",
+            email=email,
+            phone=parsed_data.phone,
+            resume_url=resume_url
+        )
+        candidate = await self.candidate_repository.create(db, candidate)
         
         # Save structured resume analysis
-        # raw_response is the dict representation of ResumeParserLLMResponse
         raw_dict = parsed_data.model_dump()
         
         analysis = ResumeAnalysis(
@@ -112,6 +137,7 @@ class CandidateService:
         
         logger.info(f"Successfully created candidate and analysis for: {candidate.name}")
         return candidate
+
 
     async def create_candidate(self, db: AsyncSession, candidate_data: dict) -> Candidate:
         candidate = Candidate(
