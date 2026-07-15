@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: ai-hiring-backend
+    runtime: docker
+    plan: free # Deploys on Render's free tier
+    envVars:
+      - key: PROJECT_NAME
+        value: "AI Hiring Automation Platform"
+      - key: API_V1_STR
+        value: "/api/v1"
+      - key: PORT
+        value: "10000" # Explicitly instruct Render and the app to use port 10000
+      
+      # Database and API keys (Render will prompt you to fill these in on deploy)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: POSTGRES_DB_HOST
+        sync: false
+      - key: POSTGRES_DB_PASSWORD
+        sync: false
+      - key: POSTGRES_DB_NAME
+        sync: false
+      - key: POSTGRES_DB_USER
+        sync: false
