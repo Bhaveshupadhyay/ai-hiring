@@ -11,6 +11,7 @@ class HealthCheckResponse(BaseModel):
     database: str
 
 @router.get("", response_model=HealthCheckResponse, status_code=status.HTTP_200_OK)
+@router.head("", status_code=status.HTTP_200_OK)
 async def health_check(db: AsyncSession = Depends(get_db)):
     """
     Check the health of the application and its database connection.
