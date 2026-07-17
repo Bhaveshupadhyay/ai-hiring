@@ -14,7 +14,9 @@ app.include_router(v1_router, prefix=config.API_V1_STR)
 app.include_router(health_router)
 
 @app.get("/ping", tags=["Liveness"])
+@app.head("/ping", tags=["Liveness"])
 @app.get("/", tags=["Liveness"])
+@app.head("/", tags=["Liveness"])
 async def ping():
     """
     Lightweight liveness check (ping) to keep the container active.
