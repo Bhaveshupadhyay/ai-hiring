@@ -13,4 +13,4 @@ jobs:
       - name: Ping Render Backend
         run: |
           # Replace the URL below with your actual deployed Render URL if it differs
-          curl -I -s -o /dev/null -w "Response Code: %{http_code}\n" https://ai-hiring-backend.onrender.com/ping
+          curl -I -s -o /dev/null -w "Response Code: %{http_code}\n" https://ai-hiring-95i2.onrender.com/ping
