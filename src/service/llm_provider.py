@@ -1,5 +1,4 @@
 import json
-import logging
 from abc import ABC, abstractmethod
 from typing import Any, cast
 from google import genai
@@ -11,8 +10,6 @@ from models.llm import (
     ResumeParserLLMResponse,
     CandidateMatchingLLMResponse
 )
-
-logger = logging.getLogger(__name__)
 
 class LLmProvider(ABC):
     @abstractmethod
@@ -66,7 +63,6 @@ class GeminiLLmProvider(LLmProvider):
 
         # Parse response using Pydantic
         text = response.text or ""
-        logger.info(f"Gemini generate_job_description response: {text}")
         return JobDescriptionLLMResponse.model_validate_json(text)
 
     async def parse_resume(self, extracted_text: str) -> ResumeParserLLMResponse:
@@ -94,7 +90,6 @@ class GeminiLLmProvider(LLmProvider):
         )
 
         text = response.text or ""
-        logger.info(f"Gemini parse_resume response: {text}")
         return ResumeParserLLMResponse.model_validate_json(text)
 
     async def match_resume(self, job_data: dict, resume_data: dict) -> CandidateMatchingLLMResponse:
@@ -126,7 +121,6 @@ class GeminiLLmProvider(LLmProvider):
         )
 
         text = response.text or ""
-        logger.info(f"Gemini match_resume response: {text}")
         return CandidateMatchingLLMResponse.model_validate_json(text)
 
 
@@ -166,7 +160,6 @@ class GroqLLmProvider(LLmProvider):
         )
 
         text = chat_completion.choices[0].message.content or "{}"
-        logger.info(f"Groq generate_job_description response: {text}")
         return JobDescriptionLLMResponse.model_validate_json(text)
 
     async def parse_resume(self, extracted_text: str) -> ResumeParserLLMResponse:
@@ -196,7 +189,6 @@ class GroqLLmProvider(LLmProvider):
         )
 
         text = chat_completion.choices[0].message.content or "{}"
-        logger.info(f"Groq parse_resume response: {text}")
         return ResumeParserLLMResponse.model_validate_json(text)
 
     async def match_resume(self, job_data: dict, resume_data: dict) -> CandidateMatchingLLMResponse:
@@ -230,7 +222,6 @@ class GroqLLmProvider(LLmProvider):
         )
 
         text = chat_completion.choices[0].message.content or "{}"
-        logger.info(f"Groq match_resume response: {text}")
         return CandidateMatchingLLMResponse.model_validate_json(text)
 
 
@@ -241,24 +232,18 @@ class FallbackLLmProvider(LLmProvider):
 
     async def generate_job_description(self, title: str) -> JobDescriptionLLMResponse:
         try:
-            logger.info("Calling primary LLM to generate job description")
             return await self.primary.generate_job_description(title)
         except Exception as e:
-            logger.warning(f"Primary LLM failed to generate job description: {e}. Falling back to backup LLM.")
             return await self.backup.generate_job_description(title)
 
     async def parse_resume(self, extracted_text: str) -> ResumeParserLLMResponse:
         try:
-            logger.info("Calling primary LLM to parse resume")
             return await self.primary.parse_resume(extracted_text)
         except Exception as e:
-            logger.warning(f"Primary LLM failed to parse resume: {e}. Falling back to backup LLM.")
             return await self.backup.parse_resume(extracted_text)
 
     async def match_resume(self, job_data: dict, resume_data: dict) -> CandidateMatchingLLMResponse:
         try:
-            logger.info("Calling primary LLM to match candidate")
             return await self.primary.match_resume(job_data, resume_data)
         except Exception as e:
-            logger.warning(f"Primary LLM failed to match candidate: {e}. Falling back to backup LLM.")
             return await self.backup.match_resume(job_data, resume_data)

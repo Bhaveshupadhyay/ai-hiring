@@ -10,6 +10,8 @@ services:
         value: "/api/v1"
       - key: PORT
         value: "10000" # Explicitly instruct Render and the app to use port 10000
+      - key: PYTHONUNBUFFERED
+        value: "1" # Force Python output to be unbuffered so logs flush in real-time
       
       # Database and API keys (Render will prompt you to fill these in on deploy)
       - key: GEMINI_API_KEY

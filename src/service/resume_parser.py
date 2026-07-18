@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 class ResumeParser:
     def __init__(self, llm_provider: LLmProvider):
         self.llm_provider = llm_provider
+        # Initialize a single AsyncClient instance with connection pooling to reuse connections.
+        # Set a 15-second timeout and disable HTTP/2 to prevent negotiation stalls behind Docker proxies.
+        self.client = httpx.AsyncClient(
+            timeout=15.0,
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            http2=False
+        )
 
     async def download_pdf(self, url: str) -> bytes:
         """
@@ -25,18 +32,25 @@ class ResumeParser:
             filename = url.split("/")[-1]
             import os
             local_path = os.path.join(os.getcwd(), "uploads", filename)
-            if os.path.exists(local_path):
-                with open(local_path, "rb") as f:
-                    return f.read()
+            
+            import asyncio
+            def _read_file():
+                if os.path.exists(local_path):
+                    with open(local_path, "rb") as f:
+                        return f.read()
+                return None
+
+            pdf_content = await asyncio.to_thread(_read_file)
+            if pdf_content is not None:
+                return pdf_content
             else:
                 raise HTTPException(status_code=404, detail=f"Local file not found for URL: {url}")
         
-        # Otherwise download via httpx
+        # Otherwise download via reused httpx.AsyncClient
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=30.0)
-                response.raise_for_status()
-                return response.content
+            response = await self.client.get(url)
+            response.raise_for_status()
+            return response.content
         except Exception as e:
             logger.error(f"Error downloading PDF from {url}: {e}")
             raise HTTPException(status_code=400, detail=f"Could not download resume PDF: {str(e)}")
@@ -59,15 +73,19 @@ class ResumeParser:
             logger.error(f"Error extracting text from PDF: {e}")
             raise HTTPException(status_code=400, detail=f"Could not extract text from PDF: {str(e)}")
 
-    async def parse(self, resume_url: str) -> ResumeParserLLMResponse:
+    async def parse(self, resume_url: str, pdf_bytes: bytes | None = None) -> ResumeParserLLMResponse:
         """
-        Downloads the PDF, extracts text, calls Gemini to parse, and returns structured data.
+        Downloads the PDF (if not provided), extracts text, calls Gemini to parse, and returns structured data.
         """
-        logger.info(f"Downloading resume from {resume_url}")
-        pdf_bytes = await self.download_pdf(resume_url)
+        if pdf_bytes is None:
+            logger.info(f"Downloading resume from {resume_url}")
+            pdf_bytes = await self.download_pdf(resume_url)
+        else:
+            logger.info(f"Using provided pdf_bytes for resume parser; skipping download.")
         
         logger.info("Extracting text from PDF")
-        extracted_text = self.extract_text(pdf_bytes)
+        import asyncio
+        extracted_text = await asyncio.to_thread(self.extract_text, pdf_bytes)
         
         logger.info("Calling Gemini LLM to parse resume text")
         parsed_data = await self.llm_provider.parse_resume(extracted_text)
