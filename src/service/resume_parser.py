@@ -1,6 +1,7 @@
 import io
 import logging
 import httpx
+import asyncio
 import pypdf
 from fastapi import HTTPException
 from service.llm_provider import LLmProvider
@@ -33,7 +34,6 @@ class ResumeParser:
             import os
             local_path = os.path.join(os.getcwd(), "uploads", filename)
             
-            import asyncio
             def _read_file():
                 if os.path.exists(local_path):
                     with open(local_path, "rb") as f:
@@ -84,7 +84,6 @@ class ResumeParser:
             logger.info(f"Using provided pdf_bytes for resume parser; skipping download.")
         
         logger.info("Extracting text from PDF")
-        import asyncio
         extracted_text = await asyncio.to_thread(self.extract_text, pdf_bytes)
         
         logger.info("Calling Gemini LLM to parse resume text")

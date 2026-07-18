@@ -10,12 +10,35 @@ class JobRepository:
         return job
 
     async def get_by_id(self, db: AsyncSession, job_id: uuid.UUID) -> Job | None:
-        result = await db.execute(select(Job).where(Job.id == job_id))
-        return result.scalar_one_or_none()
+        from sqlalchemy import func
+        from models.application import Application
+        result = await db.execute(
+            select(Job, func.count(Application.id).label("applicants_count"))
+            .outerjoin(Application, Job.id == Application.job_id)
+            .where(Job.id == job_id)
+            .group_by(Job.id)
+        )
+        row = result.first()
+        if row:
+            job, count = row
+            job.applicants_count = count
+            return job
+        return None
 
     async def get_all(self, db: AsyncSession) -> list[Job]:
-        result = await db.execute(select(Job).order_by(Job.created_at.desc()))
-        return list(result.scalars().all())
+        from sqlalchemy import func
+        from models.application import Application
+        result = await db.execute(
+            select(Job, func.count(Application.id).label("applicants_count"))
+            .outerjoin(Application, Job.id == Application.job_id)
+            .group_by(Job.id)
+            .order_by(Job.created_at.desc())
+        )
+        jobs_with_count = []
+        for job, count in result.all():
+            job.applicants_count = count
+            jobs_with_count.append(job)
+        return jobs_with_count
 
     async def update(self, db: AsyncSession, job: Job) -> Job:
         # Since SQLAlchemy tracks changes on objects attached to session,
