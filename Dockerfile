@@ -20,6 +20,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Final runtime stage
 FROM python:3.14-slim
 
+# Force Python stdout and stderr streams to be unbuffered to enable real-time logs in Docker/Render
+ENV PYTHONUNBUFFERED=1
+
 # Create a non-root user (UID 1000) for security compatibility (required by Hugging Face Spaces)
 RUN useradd -m -u 1000 user
 USER user

@@ -23,22 +23,38 @@ class CandidateService:
     async def upload_resume(self, db: AsyncSession, file: UploadFile, job_id: uuid.UUID) -> Candidate:
         """
         Flow:
-        1. Upload PDF using FileService (returns URL)
-        2. Parse Resume via ResumeParser (Gemini)
-        3. Save structured ResumeAnalysis and Candidate
+        1. Read file bytes.
+        2. Concurrently upload PDF using FileService and Parse Resume via ResumeParser (Gemini) using the read bytes.
+        3. Save structured ResumeAnalysis and Candidate.
         """
-        logger.info(f"Uploading file: {file.filename}")
-        # Upload PDF
-        resume_url = await self.file_service.upload_file(file)
+        logger.info(f"Uploading and parsing file: {file.filename}")
         
-        # Parse resume via ResumeParser
-        try:
-            parsed_data = await self.resume_parser.parse(resume_url)
-        except Exception as e:
+        file_bytes = await file.read()
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
+            
+        # Reset seek position for file service
+        await file.seek(0)
+        
+        # Concurrently upload file and parse PDF text using Gemini
+        upload_task = self.file_service.upload_file(file)
+        parse_task = self.resume_parser.parse(resume_url="", pdf_bytes=file_bytes)
+        
+        results = await asyncio.gather(upload_task, parse_task, return_exceptions=True)
+        
+        # 1. Handle upload result
+        if isinstance(results[0], Exception):
+            logger.error(f"File upload failed: {results[0]}")
+            if isinstance(results[0], HTTPException):
+                raise results[0]
+            raise HTTPException(status_code=500, detail=f"File upload failed: {str(results[0])}")
+            
+        resume_url = results[0]
+        
+        # 2. Handle parse result
+        if isinstance(results[1], Exception):
+            e = results[1]
             logger.error(f"Error parsing resume via Gemini: {e}")
-            # Even if parsing fails, we keep the candidate with the uploaded URL
-            # but raise an error or set defaults. Let's raise an HTTP exception or save placeholder analysis
-            # We want to make sure it's robust. Let's create an empty analysis to avoid breaking the DB constraints.
             candidate = Candidate(
                 name=file.filename or "Unknown",
                 email="Unknown",
@@ -63,6 +79,8 @@ class CandidateService:
                 detail=f"Successfully uploaded, but failed to parse resume text: {str(e)}"
             )
 
+        parsed_data = results[1]
+        
         # Update/Create candidate with parsed data
         email = parsed_data.email or "Unknown"
         
