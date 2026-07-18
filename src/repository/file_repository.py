@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from fastapi import HTTPException
 from core.config import config
 
@@ -34,7 +35,6 @@ class FileRepository:
         Uploads a file to Supabase Storage, or falls back to local storage.
         Returns the public URL (or local retrieval path) of the file.
         """
-        import asyncio
         if not self.use_local_fallback and self.supabase_client:
             try:
                 # We upload to the "resumes" bucket.
@@ -78,7 +78,6 @@ class FileRepository:
         """
         Downloads/reads file bytes.
         """
-        import asyncio
         if not self.use_local_fallback and self.supabase_client:
             try:
                 bucket = self.supabase_client.storage.from_(self.bucket_name)

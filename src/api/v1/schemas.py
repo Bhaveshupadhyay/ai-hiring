@@ -43,6 +43,7 @@ class JobResponse(BaseModel):
     education: str | None
     status: JobStatus
     created_at: datetime
+    applicants_count: int = 0
 
     class Config:
         from_attributes = True

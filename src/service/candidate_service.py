@@ -1,5 +1,6 @@
 import uuid
 import logging
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile, HTTPException
 from repository.candidate_repository import CandidateRepository
